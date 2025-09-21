@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+@layer base {
+  html, body {
+    @apply h-full;
+  }
+  
+  body {
+    @apply m-0 font-sans antialiased;
+  }
+  
+  #root {
+    @apply h-full;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-balance: balance;
+  }
+}
+
+/* Leaflet Map Styles */
+.leaflet-container {
+  background: #1e293b;
+}
+
+.leaflet-control-container .leaflet-control {
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  color: white;
+  border-radius: 8px;
+}
+
+.leaflet-popup-content-wrapper {
+  background: rgba(30, 41, 59, 0.95);
+  color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.leaflet-popup-tip {
+  background: rgba(30, 41, 59, 0.95);
+}
+
+.hotspot-marker {
+  background: transparent;
+  border: none;
+}
+
+.hotspot-icon {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}

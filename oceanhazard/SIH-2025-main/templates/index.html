@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Disaster Reporter</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+    <style>
+        /* Set a height for the map container */
+        #map {
+            height: 500px;
+            border-radius: 0.5rem;
+        }
+        .leaflet-container {
+             z-index: 10;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans leading-normal tracking-normal">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-4xl">
+
+        <div class="bg-white rounded-lg shadow-xl p-6 md:p-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Water Disaster Reporter</h1>
+            <p class="text-gray-600 mb-6">Upload an image to identify a water-related disaster. If confirmed, its location will be marked on the map.</p>
+
+            <!-- Upload Form -->
+            <form id="upload-form" class="space-y-4">
+                <div>
+                    <label for="file-input" class="block text-sm font-medium text-gray-700">Image File</label>
+                    <input id="file-input" name="file" type="file" accept="image/*" required class="mt-1 block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-blue-50 file:text-blue-700
+                        hover:file:bg-blue-100
+                    "/>
+                    <img id="image-preview" class="mt-4 rounded-lg max-h-60 hidden" src="#" alt="Image preview" />
+                </div>
+                <button type="submit" id="submit-button" class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400">
+                    <svg id="button-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Analyze Image</span>
+                </button>
+            </form>
+
+            <!-- Status Messages -->
+            <div id="status-message" class="mt-4 text-center text-sm font-medium"></div>
+        </div>
+
+        <!-- Map Section -->
+        <div class="bg-white rounded-lg shadow-xl p-6 md:p-8 mt-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Disaster Map</h2>
+            <div id="map"></div>
+        </div>
+
+    </div>
+
+    <script>
+        const form = document.getElementById('upload-form');
+        const fileInput = document.getElementById('file-input');
+        const imagePreview = document.getElementById('image-preview');
+        const submitButton = document.getElementById('submit-button');
+        const buttonSpinner = document.getElementById('button-spinner');
+        const statusMessage = document.getElementById('status-message');
+        let userLocation = null;
+
+        // 1. Initialize Leaflet Map
+        // Centered on a default location, will be updated later.
+        const map = L.map('map').setView([20.5937, 78.9629], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+
+        // Function to fetch and display disaster locations
+        async function fetchAndDisplayLocations() {
+            try {
+                const response = await fetch('/locations');
+                const locations = await response.json();
+                locations.forEach(loc => {
+                    L.marker([loc.lat, loc.lng])
+                     .addTo(map)
+                     .bindPopup(`<b>${loc.label}</b><br>Confidence: ${loc.score}`);
+                });
+            } catch (error) {
+                console.error("Failed to fetch locations:", error);
+            }
+        }
+
+        // 2. Handle Geolocation and File Preview
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get user's location as soon as the page loads
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    userLocation = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude
+                    };
+                    console.log('Location acquired:', userLocation);
+                    // Optionally, center the map on the user's location
+                    map.setView([userLocation.latitude, userLocation.longitude], 13);
+                }, () => {
+                    setStatus('Unable to retrieve your location. Please enable location services.', 'red');
+                });
+            } else {
+                setStatus('Geolocation is not supported by your browser.', 'red');
+            }
+
+            // Fetch initial locations
+            fetchAndDisplayLocations();
+        });
+
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                imagePreview.src = URL.createObjectURL(file);
+                imagePreview.classList.remove('hidden');
+            }
+        });
+
+
+        // 3. Handle Form Submission
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            if (!fileInput.files[0]) {
+                setStatus('Please select an image file.', 'red');
+                return;
+            }
+            if (!userLocation) {
+                setStatus('Could not determine your location. Please allow location access.', 'red');
+                return;
+            }
+
+            setLoadingState(true);
+            setStatus('Uploading and analyzing image...', 'blue');
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('latitude', userLocation.latitude);
+            formData.append('longitude', userLocation.longitude);
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    if (result.is_disaster) {
+                        setStatus(`Disaster Detected: ${result.label} (Confidence: ${result.score})`, 'green');
+                        // Add a new marker to the map
+                        const marker = L.marker([userLocation.latitude, userLocation.longitude]).addTo(map);
+                        marker.bindPopup(`<b>${result.label}</b><br>Confidence: ${result.score}`).openPopup();
+                        map.setView([userLocation.latitude, userLocation.longitude], 13);
+                    } else {
+                        setStatus(`Analysis complete: ${result.label} (Not a water disaster)`, 'gray');
+                    }
+                } else {
+                    throw new Error(result.error || 'An unknown error occurred.');
+                }
+
+            } catch (error) {
+                setStatus(`Error: ${error.message}`, 'red');
+                console.error('Submission error:', error);
+            } finally {
+                setLoadingState(false);
+            }
+        });
+
+
+        // Helper Functions
+        function setLoadingState(isLoading) {
+            submitButton.disabled = isLoading;
+            if (isLoading) {
+                buttonSpinner.classList.remove('hidden');
+                submitButton.querySelector('span').textContent = 'Processing...';
+            } else {
+                buttonSpinner.classList.add('hidden');
+                submitButton.querySelector('span').textContent = 'Analyze Image';
+            }
+        }
+
+        function setStatus(message, color) {
+            statusMessage.textContent = message;
+            const colors = {
+                red: 'text-red-600',
+                green: 'text-green-600',
+                blue: 'text-blue-600',
+                gray: 'text-gray-600'
+            };
+            statusMessage.className = `mt-4 text-center text-sm font-medium ${colors[color] || colors.gray}`;
+        }
+    </script>
+
+</body>
+</html>
